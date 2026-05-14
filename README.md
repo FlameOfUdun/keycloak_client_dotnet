@@ -47,7 +47,7 @@ Add a `Keycloak` section to `appsettings.json`:
 ```
 
 | Key | Required | Description |
-|---|---|---|
+| - | - | - |
 | `Server` | yes | Keycloak base URL (no trailing slash). |
 | `Realm` | yes | Target realm. |
 | `Resource` | yes | Confidential client id used for the service-account flow. |
@@ -141,15 +141,6 @@ On startup, the library:
 5. If `Enabled = false` → stop after step 3 (a configuration toggle that also tidies up upstream).
 
 Always delete-and-recreate keeps the secret in sync with `appsettings.json`, since Keycloak's webhook GET endpoint does not return secrets.
-
-## Building & publishing
-
-```bash
-dotnet pack -c Release
-dotnet nuget push bin/Release/KeycloakClient.<version>.nupkg \
-    --api-key $NUGET_API_KEY \
-    --source https://api.nuget.org/v3/index.json
-```
 
 ## License
 

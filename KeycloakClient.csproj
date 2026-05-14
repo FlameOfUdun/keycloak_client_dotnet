@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Package">
-    <PackageId>KeycloakClient</PackageId>
+    <PackageId>Winche.KeycloakClient</PackageId>
     <Version>1.0.0</Version>
     <Authors>Ehsan Rashidi</Authors>
     <Description>Opinionated ASP.NET Core integration for the Keycloak Admin API and the Phase Two webhook plugin. Includes service-account token management, optional user-token delegation, and a typed event-handler abstraction for webhook intake.</Description>
