@@ -20,7 +20,7 @@ An opinionated ASP.NET Core integration for the [Keycloak](https://www.keycloak.
 ## Installation
 
 ```bash
-dotnet add package KeycloakClient
+dotnet add package Winche.KeycloakClient
 ```
 
 ## Configuration
@@ -57,12 +57,109 @@ Add a `Keycloak` section to `appsettings.json`:
 | `Webhook.URL` | yes (webhooks) | Publicly reachable URL Keycloak will POST events to. |
 | `Webhook.Secret` | no | Shared secret. When set, incoming events must carry header `X-Webhook-Secret: <value>`. |
 
+## Authentication & authorization
+
+This package also configures ASP.NET Core JWT bearer authentication and Keycloak-aware authorization (role policies + UMA / Authorization Services) when you call the dedicated extensions.
+
+### `appsettings.json`
+
+Both sections are optional; add only what you use.
+
+```json
+{
+  "Keycloak": {
+    "Server": "https://id.example.com",
+    "Realm": "myrealm",
+    "Resource": "myapp",
+    "Credentials": { "Secret": "REPLACE_ME" },
+
+    "Authentication": {
+      "ValidateAudience": false,
+      "RolesSource": "RealmAndResource",
+      "RealmRolePrefix": null,
+      "ResourceRolePrefix": null,
+      "AdditionalResourceClients": []
+    },
+
+    "Authorization": {
+      "CacheDuration": null,
+      "DecisionStrategy": "Unanimous"
+    }
+  }
+}
+```
+
+| Key | Default | Meaning |
+| - | - | - |
+| `Authentication.ValidateAudience` | `false` | Strict `aud == Resource` validation. Off by default (Keycloak's default `aud` is `account`); turn on once you've added an Audience mapper in Keycloak. The `azp` claim is always checked regardless. |
+| `Authentication.RolesSource` | `RealmAndResource` | Which Keycloak role sources to flatten into `ClaimTypes.Role`: `Realm`, `Resource`, or both. |
+| `Authentication.RealmRolePrefix` / `ResourceRolePrefix` | `null` | Optional prefix prepended to each role claim, e.g. `"realm:"` produces `realm:admin`. |
+| `Authentication.AdditionalResourceClients` | `[]` | Extra `resource_access.*` entries to read roles from, beyond the configured `Resource`. |
+| `Authorization.CacheDuration` | `null` (off) | If set, UMA decisions are cached in `IDistributedCache` for the given `TimeSpan`. Cache key is `kc:authz:{sha256(bearer)}:{resource}:{scope}`. |
+| `Authorization.DecisionStrategy` | `Unanimous` | Reserved for future client-side composition; bound from config but not transmitted to Keycloak in v1. |
+
+### Registration
+
+```csharp
+using Winche.KeycloakClient.DependencyInjection;
+
+builder.Services
+    .AddKeycloakClient(builder.Configuration)
+    .AddKeycloakAuthentication(builder.Configuration)
+    .AddKeycloakAuthorization(builder.Configuration, c => c
+        .AddRealmRolePolicy("admin")
+        .AddResourceRolePolicy("editor")
+        .AddProtectedResourcePolicy("can-read-doc", "document", "read"));
+
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
+### Usage
+
+Role-based — `[Authorize]` with realm/resource roles:
+
+```csharp
+app.MapGet("/admin/users", () => "ok").RequireAuthorization("admin");
+app.MapGet("/editor/doc", () => "ok").RequireAuthorization("editor");
+```
+
+After authentication, both realm and resource roles are exposed as `ClaimTypes.Role` claims, so `[Authorize(Roles = "admin")]` and `User.IsInRole("admin")` also work.
+
+Endpoint-level UMA — `[ProtectedResource]` attribute or `kc:protected:*` policy:
+
+```csharp
+app.MapGet("/documents", [ProtectedResource("document", "read")] () => "ok");
+
+// Equivalent:
+app.MapGet("/documents", () => "ok")
+    .RequireAuthorization("kc:protected:document:read");
+```
+
+Both forms cause `KeycloakProtectedResourceHandler` to ask Keycloak whether the current token is granted `read` on `document`. A denial returns 403.
+
+Resource-instance UMA — imperative `IKeycloakAuthorizationService`:
+
+```csharp
+app.MapGet("/documents/{id:int}", async (
+        int id,
+        IKeycloakAuthorizationService authz,
+        IDocumentStore store,
+        CancellationToken ct) =>
+{
+    await authz.RequireAsync($"document:{id}", "read", ct);
+    return Results.Ok(await store.GetAsync(id, ct));
+}).RequireAuthorization();
+```
+
+`RequireAsync` throws `KeycloakAuthorizationException` on deny; let it bubble and exception-handling middleware can translate to 403. Use `AuthorizeAsync` (returns `bool`) when you need to branch on the decision.
+
 ## Quick start
 
 ### Registration
 
 ```csharp
-using KeycloakClient.DependencyInjection;
+using Winche.KeycloakClient.DependencyInjection;
 
 const string DelegatedClientKey = "user";
 
@@ -109,8 +206,8 @@ Pass a different path if you want: `app.UseKeycloakWebHooks("/hooks/kc");`. The 
 Derive from `KeycloakEventHandler`, declare the event types you care about, and implement `HandleAsync`:
 
 ```csharp
-using KeycloakClient.Abstraction;
-using KeycloakClient.Models;
+using Winche.KeycloakClient.Abstraction;
+using Winche.KeycloakClient.Models;
 
 public sealed class UserCreatedHandler(ILogger<UserCreatedHandler> logger) : KeycloakEventHandler
 {
@@ -120,7 +217,7 @@ public sealed class UserCreatedHandler(ILogger<UserCreatedHandler> logger) : Key
         "admin.USER-CREATE"
     };
 
-    public override Task HandleAsync(KeycloakAdminEvent @event, CancellationToken ct)
+    public override Task HandleAsync(KeycloakWebhookEvent @event, CancellationToken ct)
     {
         logger.LogInformation("Got '{Type}' for {Username}", @event.Type, @event.Representation?.Username);
         return Task.CompletedTask;

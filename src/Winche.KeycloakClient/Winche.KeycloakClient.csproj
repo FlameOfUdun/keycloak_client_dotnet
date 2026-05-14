@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Winche.KeycloakClient</RootNamespace>
+    <AssemblyName>Winche.KeycloakClient</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package">
+    <PackageId>Winche.KeycloakClient</PackageId>
+    <Version>1.1.0</Version>
+    <Authors>Ehsan Rashidi</Authors>
+    <Description>Opinionated ASP.NET Core integration for the Keycloak Admin API and the Phase Two webhook plugin. Includes service-account token management, optional user-token delegation, and a typed event-handler abstraction for webhook intake.</Description>
+    <PackageTags>keycloak;admin-api;webhooks;identity;authentication;aspnetcore;dotnet</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/FlameOfUdun/keycloak_client_dotnet</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/FlameOfUdun/keycloak_client_dotnet</PackageProjectUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Duende.AccessTokenManagement" Version="4.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Winche.KeycloakClient.Tests" />
+  </ItemGroup>
+
+</Project>
