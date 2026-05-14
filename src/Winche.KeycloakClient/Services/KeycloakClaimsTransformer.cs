@@ -16,7 +16,9 @@ internal static class KeycloakClaimsTransformer
 
     /// <summary>
     /// Pure-logic core: mutates the principal's <see cref="ClaimsIdentity"/> in place and returns
-    /// a non-null failure message when the token should be rejected (e.g., <c>azp</c> mismatch).
+    /// a non-null failure message when the token should be rejected. Today this only ever returns
+    /// <c>null</c>; "is this token for me?" is enforced by the framework's audience validation
+    /// (see <see cref="KeycloakJwtBearerConfigurator"/>), and roles are flattened into role claims.
     /// Separated from <see cref="Transform"/> so it can be unit-tested without constructing a
     /// <see cref="TokenValidatedContext"/>.
     /// </summary>
@@ -25,12 +27,6 @@ internal static class KeycloakClaimsTransformer
         if (principal.Identity is not ClaimsIdentity identity) return null;
 
         var auth = options.Authentication ?? new KeycloakAuthenticationOptions();
-
-        var azp = principal.FindFirst("azp")?.Value;
-        if (!string.Equals(azp, options.Resource, StringComparison.Ordinal))
-        {
-            return $"Token 'azp' claim '{azp}' does not match configured Resource '{options.Resource}'.";
-        }
 
         if (auth.RolesSource is KeycloakRolesSource.Realm or KeycloakRolesSource.RealmAndResource)
         {

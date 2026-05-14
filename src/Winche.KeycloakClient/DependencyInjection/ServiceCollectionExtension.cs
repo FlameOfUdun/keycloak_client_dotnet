@@ -90,9 +90,9 @@ public static class ServiceCollectionExtension
 
     /// <summary>
     /// Configures JwtBearer authentication against the Keycloak realm specified in the
-    /// <c>Keycloak</c> configuration section. Validates issuer, signing key, lifetime, and the
-    /// <c>azp</c> claim against the configured <c>Resource</c>; flattens realm and resource roles
-    /// into <see cref="System.Security.Claims.ClaimTypes.Role"/> claims.
+    /// <c>Keycloak</c> configuration section. Validates issuer, signing key, lifetime, and audience
+    /// (<c>aud</c> claim must include the configured <c>Resource</c>); flattens realm and resource
+    /// roles into <see cref="System.Security.Claims.ClaimTypes.Role"/> claims.
     /// </summary>
     public static IServiceCollection AddKeycloakAuthentication(this IServiceCollection services, IConfiguration configuration, Action<AuthenticationDependencyConfigurator>? configure = null)
     {

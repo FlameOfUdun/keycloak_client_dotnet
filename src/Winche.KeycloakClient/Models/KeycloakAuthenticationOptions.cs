@@ -12,7 +12,7 @@ public enum KeycloakRolesSource
 public sealed record KeycloakAuthenticationOptions
 {
     [ConfigurationKeyName("ValidateAudience")]
-    public bool ValidateAudience { get; set; } = false;
+    public bool ValidateAudience { get; set; } = true;
 
     [ConfigurationKeyName("RolesSource")]
     public KeycloakRolesSource RolesSource { get; set; } = KeycloakRolesSource.RealmAndResource;

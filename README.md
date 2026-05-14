@@ -74,7 +74,7 @@ Both sections are optional; add only what you use.
     "Credentials": { "Secret": "REPLACE_ME" },
 
     "Authentication": {
-      "ValidateAudience": false,
+      "ValidateAudience": true,
       "RolesSource": "RealmAndResource",
       "RealmRolePrefix": null,
       "ResourceRolePrefix": null,
@@ -91,7 +91,7 @@ Both sections are optional; add only what you use.
 
 | Key | Default | Meaning |
 | - | - | - |
-| `Authentication.ValidateAudience` | `false` | Strict `aud == Resource` validation. Off by default (Keycloak's default `aud` is `account`); turn on once you've added an Audience mapper in Keycloak. The `azp` claim is always checked regardless. |
+| `Authentication.ValidateAudience` | `true` | Strict `aud` contains `Resource` validation — this is what enforces "is this token for me?". Keep on for any user-bearer-token flow (SPA → API, mobile → API); the standard Keycloak setup requires adding an Audience mapper so `aud` includes your client id. Set to `false` only if you have a deliberate reason (e.g. internal-only audience inference). The `azp` claim is *not* checked — per OIDC, `azp` identifies the requesting client and is not an access-control claim. |
 | `Authentication.RolesSource` | `RealmAndResource` | Which Keycloak role sources to flatten into `ClaimTypes.Role`: `Realm`, `Resource`, or both. |
 | `Authentication.RealmRolePrefix` / `ResourceRolePrefix` | `null` | Optional prefix prepended to each role claim, e.g. `"realm:"` produces `realm:admin`. |
 | `Authentication.AdditionalResourceClients` | `[]` | Extra `resource_access.*` entries to read roles from, beyond the configured `Resource`. |

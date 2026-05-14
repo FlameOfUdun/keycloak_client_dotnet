@@ -19,21 +19,9 @@ public class KeycloakClaimsTransformerTests
         };
 
     [Fact]
-    public void AzpMismatch_ReturnsFailureMessage()
+    public void NoRoles_ReturnsNullAndEmitsNoRoleClaims()
     {
-        var principal = BuildPrincipal(new Claim("azp", "other-app"));
-
-        var failure = KeycloakClaimsTransformer.TransformCore(principal, Options(resource: "myapp"));
-
-        Assert.NotNull(failure);
-        Assert.Contains("other-app", failure);
-        Assert.Contains("myapp", failure);
-    }
-
-    [Fact]
-    public void AzpMatch_NoRoles_ReturnsNullAndEmitsNoRoleClaims()
-    {
-        var principal = BuildPrincipal(new Claim("azp", "myapp"));
+        var principal = BuildPrincipal();
 
         var failure = KeycloakClaimsTransformer.TransformCore(principal, Options());
 
@@ -42,10 +30,22 @@ public class KeycloakClaimsTransformerTests
     }
 
     [Fact]
+    public void DifferentAzp_StillSucceeds()
+    {
+        // azp identifies the requesting client per OIDC and is not used for resource-server
+        // access control. "Is this token for me?" is enforced by the framework's audience
+        // validation in KeycloakJwtBearerConfigurator, not by this transformer.
+        var principal = BuildPrincipal(new Claim("azp", "some-other-client"));
+
+        var failure = KeycloakClaimsTransformer.TransformCore(principal, Options(resource: "myapp"));
+
+        Assert.Null(failure);
+    }
+
+    [Fact]
     public void RealmRoles_FlattenedIntoRoleClaims()
     {
         var principal = BuildPrincipal(
-            new Claim("azp", "myapp"),
             new Claim("realm_access", "{\"roles\":[\"admin\",\"user\"]}"));
 
         var failure = KeycloakClaimsTransformer.TransformCore(principal, Options());
@@ -59,7 +59,6 @@ public class KeycloakClaimsTransformerTests
     public void ResourceRoles_FlattenedIntoRoleClaims()
     {
         var principal = BuildPrincipal(
-            new Claim("azp", "myapp"),
             new Claim("resource_access", "{\"myapp\":{\"roles\":[\"editor\"]}}"));
 
         var failure = KeycloakClaimsTransformer.TransformCore(principal, Options());
@@ -73,7 +72,6 @@ public class KeycloakClaimsTransformerTests
     public void RolesSourceRealm_OnlyEmitsRealmRoles()
     {
         var principal = BuildPrincipal(
-            new Claim("azp", "myapp"),
             new Claim("realm_access", "{\"roles\":[\"admin\"]}"),
             new Claim("resource_access", "{\"myapp\":{\"roles\":[\"editor\"]}}"));
 
@@ -90,7 +88,6 @@ public class KeycloakClaimsTransformerTests
     public void RolesSourceResource_OnlyEmitsResourceRoles()
     {
         var principal = BuildPrincipal(
-            new Claim("azp", "myapp"),
             new Claim("realm_access", "{\"roles\":[\"admin\"]}"),
             new Claim("resource_access", "{\"myapp\":{\"roles\":[\"editor\"]}}"));
 
@@ -107,7 +104,6 @@ public class KeycloakClaimsTransformerTests
     public void RolePrefixes_AppliedIndependentlyToEachSource()
     {
         var principal = BuildPrincipal(
-            new Claim("azp", "myapp"),
             new Claim("realm_access", "{\"roles\":[\"admin\"]}"),
             new Claim("resource_access", "{\"myapp\":{\"roles\":[\"editor\"]}}"));
 
@@ -129,7 +125,6 @@ public class KeycloakClaimsTransformerTests
     public void AdditionalResourceClients_AlsoContributeRoles()
     {
         var principal = BuildPrincipal(
-            new Claim("azp", "myapp"),
             new Claim("resource_access", "{\"myapp\":{\"roles\":[\"editor\"]},\"other-app\":{\"roles\":[\"viewer\"]}}"));
 
         var failure = KeycloakClaimsTransformer.TransformCore(
@@ -149,7 +144,6 @@ public class KeycloakClaimsTransformerTests
     public void EmailGivenNameFamilyName_MappedToClaimTypes()
     {
         var principal = BuildPrincipal(
-            new Claim("azp", "myapp"),
             new Claim("email", "alice@example.com"),
             new Claim("given_name", "Alice"),
             new Claim("family_name", "Smith"));
@@ -166,7 +160,6 @@ public class KeycloakClaimsTransformerTests
     public void PreexistingClaimTypeEmail_NotOverwritten()
     {
         var principal = BuildPrincipal(
-            new Claim("azp", "myapp"),
             new Claim("email", "from-kc@example.com"),
             new Claim(ClaimTypes.Email, "preexisting@example.com"));
 
