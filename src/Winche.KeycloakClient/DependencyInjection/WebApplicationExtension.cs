@@ -2,7 +2,6 @@ using Winche.KeycloakClient.Interfaces;
 using Winche.KeycloakClient.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 using System.Text;
@@ -14,18 +13,45 @@ public static class WebApplicationExtensions
 {
     public static WebApplication UseKeycloakWebHooks(this WebApplication app, string path = "/webhooks/keycloak")
     {
-        app.MapPost(path, async (HttpRequest request, [FromBody] JsonElement payload, IKeycloakWebhookService service, IOptions<KeycloakClientOptions> options, CancellationToken ct) =>
+        app.MapPost(path, async (HttpRequest request, IKeycloakWebhookService service, IOptions<KeycloakClientOptions> options, CancellationToken ct) =>
         {
-            var expectedSecret = options.Value.Webhook?.Secret;
-            if (!string.IsNullOrEmpty(expectedSecret))
+            using var ms = new MemoryStream();
+            await request.Body.CopyToAsync(ms, ct);
+            var body = ms.ToArray();
+
+            var secret = options.Value.Webhook?.Secret;
+            if (!string.IsNullOrEmpty(secret))
             {
-                var providedSecret = request.Headers["X-Webhook-Secret"].FirstOrDefault();
-                var expectedBytes = Encoding.UTF8.GetBytes(expectedSecret);
-                var providedBytes = Encoding.UTF8.GetBytes(providedSecret ?? "");
-                if (providedBytes.Length != expectedBytes.Length || !CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes))
+                var signatureHeader = request.Headers["X-Keycloak-Signature"].FirstOrDefault();
+                if (string.IsNullOrEmpty(signatureHeader))
+                {
                     return Results.Unauthorized();
+                }
+
+                byte[] expected;
+                using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+                {
+                    expected = hmac.ComputeHash(body);
+                }
+
+                byte[] provided;
+                try
+                {
+                    provided = Convert.FromHexString(signatureHeader);
+                }
+                catch (FormatException)
+                {
+                    return Results.Unauthorized();
+                }
+
+                if (provided.Length != expected.Length ||
+                    !CryptographicOperations.FixedTimeEquals(provided, expected))
+                {
+                    return Results.Unauthorized();
+                }
             }
 
+            var payload = JsonSerializer.Deserialize<JsonElement>(body);
             await service.HandleEventAsync(payload, ct);
             return Results.Ok();
         }).AllowAnonymous();
