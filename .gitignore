@@ -1,0 +1,77 @@
+# Build output
+bin/
+obj/
+out/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userprefs
+*.userosscache
+*.sln.docstates
+*.ncrunchproject
+*.ncrunchsolution
+*.code-workspace
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# Rider / JetBrains
+*.sln.iml
+
+# .NET tooling
+*.pdb
+*.dll
+*.exe
+*.pidb
+*.cache
+*.swp
+*.log
+*.tlog
+*.tmp
+*.tmp_proj
+*.vspscc
+*.vssscc
+*.lock.json
+*.binlog
+
+# Test results / coverage
+TestResults/
+[Cc]overage*/
+*.coverage
+*.coveragexml
+*.trx
+
+# Publish output
+publish/
+PublishProfiles/*.pubxml.user
+
+# User-specific files
+*.user
+*.suo
+launchSettings.json.user
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets — do not commit
+appsettings.*.Local.json
+secrets.json
+*.pfx
