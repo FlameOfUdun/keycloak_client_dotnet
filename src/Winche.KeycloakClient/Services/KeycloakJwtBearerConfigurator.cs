@@ -13,6 +13,11 @@ internal static class KeycloakJwtBearerConfigurator
         o.Authority = authority;
         o.RequireHttpsMetadata = authority.StartsWith("https:", StringComparison.OrdinalIgnoreCase);
 
+        // Preserve original OIDC claim names ("sub", "email", "given_name", "family_name", etc.)
+        // instead of remapping them to the SOAP/WS-* claim type URIs. Consumers working with
+        // Keycloak almost always reach for the OIDC names directly.
+        o.MapInboundClaims = false;
+
         var auth = options.Authentication ?? new KeycloakAuthenticationOptions();
 
         o.TokenValidationParameters = new TokenValidationParameters

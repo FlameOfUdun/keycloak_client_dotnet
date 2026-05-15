@@ -126,6 +126,8 @@ app.MapGet("/editor/doc", () => "ok").RequireAuthorization("editor");
 
 After authentication, both realm and resource roles are exposed as `ClaimTypes.Role` claims, so `[Authorize(Roles = "admin")]` and `User.IsInRole("admin")` also work.
 
+Original OIDC claim names are preserved on `ClaimsPrincipal` — `User.FindFirstValue("sub")`, `User.FindFirstValue("email")`, `User.FindFirstValue("preferred_username")` work directly. The JwtBearer handler's default inbound-claim remapping (which would rewrite `sub` to `…/nameidentifier`, `email` to `…/emailaddress`, etc.) is disabled.
+
 Endpoint-level UMA — `[ProtectedResource]` attribute or `kc:protected:*` policy:
 
 ```csharp

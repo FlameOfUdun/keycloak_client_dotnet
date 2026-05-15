@@ -92,7 +92,9 @@ public static class ServiceCollectionExtension
     /// Configures JwtBearer authentication against the Keycloak realm specified in the
     /// <c>Keycloak</c> configuration section. Validates issuer, signing key, lifetime, and audience
     /// (<c>aud</c> claim must include the configured <c>Resource</c>); flattens realm and resource
-    /// roles into <see cref="System.Security.Claims.ClaimTypes.Role"/> claims.
+    /// roles into <see cref="System.Security.Claims.ClaimTypes.Role"/> claims. Original OIDC claim
+    /// names (<c>sub</c>, <c>email</c>, <c>given_name</c>, ...) are preserved on the principal —
+    /// the JwtBearer handler's default inbound-claim remapping is disabled.
     /// </summary>
     public static IServiceCollection AddKeycloakAuthentication(this IServiceCollection services, IConfiguration configuration, Action<AuthenticationDependencyConfigurator>? configure = null)
     {
