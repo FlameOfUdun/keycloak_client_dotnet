@@ -4,16 +4,13 @@ using Microsoft.Extensions.Options;
 
 namespace Winche.KeycloakClient.Services;
 
-public sealed class KeycloakPolicyProvider : IAuthorizationPolicyProvider
+public sealed class KeycloakPolicyProvider(
+    IOptions<AuthorizationOptions> options
+) : IAuthorizationPolicyProvider
 {
     private const string Prefix = "kc:protected:";
 
-    private readonly DefaultAuthorizationPolicyProvider _fallback;
-
-    public KeycloakPolicyProvider(IOptions<AuthorizationOptions> options)
-    {
-        _fallback = new DefaultAuthorizationPolicyProvider(options);
-    }
+    private readonly DefaultAuthorizationPolicyProvider _fallback = new(options);
 
     public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => _fallback.GetDefaultPolicyAsync();
 

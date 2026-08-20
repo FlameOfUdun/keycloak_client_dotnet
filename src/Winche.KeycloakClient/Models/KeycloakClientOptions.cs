@@ -47,4 +47,7 @@ public sealed record KeycloakWebhookOptions
 
     [ConfigurationKeyName("Secret")]
     public string? Secret { get; set; }
+
+    [ConfigurationKeyName("Recreate")]
+    public bool Recreate { get; set; }
 }

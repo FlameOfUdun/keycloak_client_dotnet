@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace Winche.KeycloakClient.Services;
 
-public class KeycloakClientService : IKeycloakClientService
+public sealed class KeycloakClientService : IKeycloakClientService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly string _httpClientName;

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 using Winche.KeycloakClient.Interfaces;
 using Winche.KeycloakClient.Models;
 using Winche.KeycloakClient.Services;
@@ -37,7 +38,9 @@ public class KeycloakProtectedResourceHandlerTests
     [Fact]
     public async Task RequirementSucceeded_WhenAuthzGrants()
     {
-        var handler = new KeycloakProtectedResourceHandler(new StubAuthz((r, s) => true));
+        var handler = new KeycloakProtectedResourceHandler(
+            new LoggerFactory().CreateLogger<KeycloakProtectedResourceHandler>(),
+            new StubAuthz((r, s) => true));
         var requirement = new KeycloakProtectedResourceRequirement("document", "read");
         var ctx = BuildContext(requirement);
 
@@ -49,7 +52,9 @@ public class KeycloakProtectedResourceHandlerTests
     [Fact]
     public async Task RequirementNotSucceeded_WhenAuthzDenies()
     {
-        var handler = new KeycloakProtectedResourceHandler(new StubAuthz((r, s) => false));
+        var handler = new KeycloakProtectedResourceHandler(
+            new LoggerFactory().CreateLogger<KeycloakProtectedResourceHandler>(),
+            new StubAuthz((r, s) => false));
         var requirement = new KeycloakProtectedResourceRequirement("document", "read");
         var ctx = BuildContext(requirement);
 
@@ -63,7 +68,9 @@ public class KeycloakProtectedResourceHandlerTests
     {
         // KeycloakAuthorizationException from the service (e.g., missing bearer) must be swallowed
         // by the handler so ASP.NET returns 403, not 500.
-        var handler = new KeycloakProtectedResourceHandler(new ThrowingAuthz());
+        var handler = new KeycloakProtectedResourceHandler(
+            new LoggerFactory().CreateLogger<KeycloakProtectedResourceHandler>(),
+            new ThrowingAuthz());
         var requirement = new KeycloakProtectedResourceRequirement("document", "read");
         var ctx = BuildContext(requirement);
 

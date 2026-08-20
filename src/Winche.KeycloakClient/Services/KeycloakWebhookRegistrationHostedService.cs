@@ -10,17 +10,20 @@ internal sealed class KeycloakWebhookRegistrationHostedService(
     ILogger<KeycloakWebhookRegistrationHostedService> logger
 ) : IHostedService
 {
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly ILogger<KeycloakWebhookRegistrationHostedService> _logger = logger;
+
     public async Task StartAsync(CancellationToken ct)
     {
         try
         {
-            using var scope = serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateScope();
             var webhookService = scope.ServiceProvider.GetRequiredService<IKeycloakWebhookService>();
-            await webhookService.RegisterWebhooksAsync(ct);
+            await webhookService.RegisterWebhookAsync(ct);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "[Keycloak] Failed to register webhook on startup.");
+            _logger.LogError(ex, "[Keycloak] Failed to register webhook on startup.");
         }
     }
 

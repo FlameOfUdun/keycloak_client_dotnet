@@ -5,12 +5,10 @@ using System.Net.Http.Headers;
 namespace Winche.KeycloakClient.Services;
 
 public sealed class KeycloakTokenDelegationHandler(
-    IHttpContextAccessor httpContextAccessor,
-    ILogger<KeycloakTokenDelegationHandler> logger
+    IHttpContextAccessor httpContextAccessor
 ) : DelegatingHandler
 {
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly ILogger<KeycloakTokenDelegationHandler> _logger = logger;
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
@@ -23,9 +21,6 @@ public sealed class KeycloakTokenDelegationHandler(
 
         var token = authHeader["Bearer ".Length..];
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        _logger.LogDebug("Forwarding user token to Keycloak Admin API: {Uri}", request.RequestUri);
-
         return await base.SendAsync(request, ct);
     }
 }

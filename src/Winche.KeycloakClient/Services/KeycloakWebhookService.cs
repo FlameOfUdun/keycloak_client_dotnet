@@ -14,6 +14,11 @@ public sealed class KeycloakWebhookService(
     IEnumerable<KeycloakEventHandler> handlers
 ) : IKeycloakWebhookService
 {
+    private readonly IKeycloakClientService _client = client;
+    private readonly IOptions<KeycloakClientOptions> _options = options;
+    private readonly ILogger<KeycloakWebhookService> _logger = logger;
+    private readonly IEnumerable<KeycloakEventHandler> _handlers = handlers;
+
     public async Task HandleEventAsync(JsonElement payload, CancellationToken ct = default)
     {
         KeycloakWebhookEvent parsed;
@@ -24,14 +29,14 @@ public sealed class KeycloakWebhookService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "[Keycloak] Failed to parse incoming event.");
+            _logger.LogError(ex, "[Keycloak] Failed to parse incoming event.");
             return;
         }
 
-        var targets = handlers.Where(h => h.Types.Contains(parsed.Type)).ToArray();
+        var targets = _handlers.Where(h => h.Types.Contains(parsed.Type)).ToArray();
         if (targets.Length == 0)
         {
-            logger.LogWarning("[Keycloak] No handler registered for event type '{EventType}'.", parsed.Type);
+            _logger.LogWarning("[Keycloak] No handler registered for event type '{EventType}'.", parsed.Type);
             return;
         }
 
@@ -43,41 +48,55 @@ public sealed class KeycloakWebhookService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "[Keycloak] Handler '{Handler}' failed for event '{EventType}'.", h.GetType().Name, parsed.Type);
+                _logger.LogError(ex, "[Keycloak] Handler '{Handler}' failed for event '{EventType}'.", h.GetType().Name, parsed.Type);
             }
         });
 
         await Task.WhenAll(tasks);
     }
 
-    public async Task RegisterWebhooksAsync(CancellationToken ct = default)
+    public async Task RegisterWebhookAsync(CancellationToken ct = default)
     {
-        var webhookDef = options.Value.Webhook;
+        var webhookDef = _options.Value.Webhook;
         if (webhookDef is null || string.IsNullOrWhiteSpace(webhookDef.Url))
         {
-            logger.LogInformation("[Keycloak] No webhook configured. Registration skipped.");
+            _logger.LogInformation("[Keycloak] No webhook configured. Registration skipped.");
             return;
         }
 
-        var existing = (await client.GetWebhooksAsync(ct))
+        var existing = (await _client.GetWebhooksAsync(ct))
             .FirstOrDefault(h => string.Equals(h.Url, webhookDef.Url, StringComparison.OrdinalIgnoreCase));
+
+        var eventTypes = _handlers.SelectMany(h => h.Types).Distinct().ToArray();
+
+        if (existing is not null
+            && webhookDef.Enabled
+            && !webhookDef.Recreate
+            && eventTypes.Length > 0
+            && SubscribesTo(existing, eventTypes))
+        {
+            _logger.LogInformation(
+                "[Keycloak] Webhook '{WebhookId}' for URL '{WebhookUrl}' already matches configuration; leaving it in place.",
+                existing.Id,
+                webhookDef.Url);
+            return;
+        }
 
         if (existing?.Id is { } existingId)
         {
-            logger.LogInformation("[Keycloak] Removing existing webhook '{WebhookId}' for URL '{WebhookUrl}'.", existingId, webhookDef.Url);
-            await client.DeleteWebhookAsync(existingId, ct);
+            _logger.LogInformation("[Keycloak] Removing existing webhook '{WebhookId}' for URL '{WebhookUrl}'.", existingId, webhookDef.Url);
+            await _client.DeleteWebhookAsync(existingId, ct);
         }
 
         if (!webhookDef.Enabled)
         {
-            logger.LogInformation("[Keycloak] Webhook disabled in configuration. Skipping creation.");
+            _logger.LogInformation("[Keycloak] Webhook disabled in configuration. Skipping creation.");
             return;
         }
 
-        var eventTypes = handlers.SelectMany(h => h.Types).Distinct().ToArray();
         if (eventTypes.Length == 0)
         {
-            logger.LogInformation("[Keycloak] No event handlers registered; no event types to subscribe. Registration skipped.");
+            _logger.LogInformation("[Keycloak] No event handlers registered; no event types to subscribe. Registration skipped.");
             return;
         }
 
@@ -89,7 +108,24 @@ public sealed class KeycloakWebhookService(
             EventTypes = eventTypes
         };
 
-        await client.CreateWebhookAsync(webhook, ct);
-        logger.LogInformation("[Keycloak] Webhook registered for URL '{WebhookUrl}' with {EventTypeCount} event type(s).", webhook.Url, eventTypes.Length);
+        await _client.CreateWebhookAsync(webhook, ct);
+
+        _logger.LogInformation(
+            "[Keycloak] Webhook registered for URL '{WebhookUrl}' with {EventTypeCount} event type(s).",
+            webhook.Url,
+            eventTypes.Length);
+    }
+
+    private static bool SubscribesTo(KeycloakWebhook existing, string[] eventTypes)
+    {
+        if (!existing.Enabled)
+        {
+            return false;
+        }
+
+        var current = existing.EventTypes ?? [];
+
+        return current.Length == eventTypes.Length
+            && new HashSet<string>(current, StringComparer.Ordinal).SetEquals(eventTypes);
     }
 }
