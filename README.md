@@ -7,7 +7,7 @@ An opinionated ASP.NET Core integration for the [Keycloak](https://www.keycloak.
 - **Service-account `IKeycloakClientService`** — backed by client-credentials token management ([Duende.AccessTokenManagement](https://github.com/DuendeSoftware/Duende.AccessTokenManagement)). Works for background jobs and unauthenticated callers.
 - **Optional delegated `IKeycloakClientService`** — forwards the incoming request's bearer token to the Admin API. Operations run with the caller's privileges.
 - **Admin API coverage** — users (CRUD, search, count, reset-password, action emails), groups, user/group membership.
-- **Webhook intake** — `app.UseKeycloakWebHooks()` mounts an endpoint, validates the shared secret in constant time, and dispatches typed events to your handlers.
+- **Webhook intake** — `app.UseKeycloakWebHooks()` mounts an endpoint, verifies each event's HMAC signature in constant time, and dispatches typed events to your handlers.
 - **Automatic registration** — registers (or removes) the webhook on startup based on `appsettings.json`.
 
 ## Requirements
@@ -55,7 +55,7 @@ Add a `Keycloak` section to `appsettings.json`:
 | `Agent` | no | User-Agent header sent on outgoing requests. |
 | `Webhook.Enabled` | no | `true` to register, `false` to remove. Default `true`. |
 | `Webhook.URL` | yes (webhooks) | Publicly reachable URL Keycloak will POST events to. |
-| `Webhook.Secret` | no | Shared secret. When set, incoming events must carry header `X-Webhook-Secret: <value>`. |
+| `Webhook.Secret` | yes (webhooks) | Shared secret. Every event must carry `X-Keycloak-Signature`, the hex HMAC-SHA256 of the body with this secret. **Without it the endpoint rejects every event** (401). |
 
 ## Authentication & authorization
 
@@ -201,7 +201,12 @@ The forwarded token must carry the right realm-management roles for the operatio
 app.UseKeycloakWebHooks(); // mounts POST /webhooks/keycloak by default
 ```
 
-Pass a different path if you want: `app.UseKeycloakWebHooks("/hooks/kc");`. The endpoint validates `X-Webhook-Secret` against `Keycloak:Webhook:Secret` using a constant-time comparison.
+Pass a different path if you want: `app.UseKeycloakWebHooks("/hooks/kc");`. The endpoint verifies `X-Keycloak-Signature` (hex HMAC-SHA256 of the raw body with `Keycloak:Webhook:Secret`, compared in constant time) and answers:
+
+- `401` when the signature is missing or wrong, **or when no secret is configured** (an error is logged at startup), so unsigned events are never accepted;
+- `400` for a body that isn't JSON;
+- `500` when any handler throws, so Keycloak retries the event;
+- `200` otherwise.
 
 ### Event handlers
 
@@ -227,7 +232,7 @@ public sealed class UserCreatedHandler(ILogger<UserCreatedHandler> logger) : Key
 }
 ```
 
-Register the handler when wiring webhooks: `c.AddEventHandler<UserCreatedHandler>()`. Handlers are invoked in parallel; exceptions from one handler don't affect others.
+Register the handler when wiring webhooks: `c.AddEventHandler<UserCreatedHandler>()`. Handlers are invoked in parallel; an exception in one doesn't stop the others, but it fails the event (500) so Keycloak delivers it again. Make handlers idempotent.
 
 ## Webhook lifecycle
 

@@ -40,6 +40,7 @@ public sealed class KeycloakWebhookService(
             return;
         }
 
+        var failures = new System.Collections.Concurrent.ConcurrentBag<Exception>();
         var tasks = targets.Select(async h =>
         {
             try
@@ -49,10 +50,17 @@ public sealed class KeycloakWebhookService(
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Keycloak] Handler '{Handler}' failed for event '{EventType}'.", h.GetType().Name, parsed.Type);
+                failures.Add(ex);
             }
         });
 
         await Task.WhenAll(tasks);
+
+        // Surfaced so the endpoint answers 500 and Keycloak retries, instead of the event being lost.
+        if (!failures.IsEmpty)
+        {
+            throw new KeycloakWebhookHandlerException(parsed.Type, [.. failures]);
+        }
     }
 
     public async Task RegisterWebhookAsync(CancellationToken ct = default)
